@@ -3,20 +3,22 @@
 require 'optparse'
 require 'ostruct'
 require 'json'
+require 'shellwords'
 
 # Define a class for the program logic
 
 class DirectoryValidator
   def self.validate!(directory)
-    return if Dir.exist?(directory)
-    puts "The directory '#{directory}' does not exist."
-    exit(1)
+    unless Dir.exist?(directory)
+      puts "The directory '#{directory}' does not exist."
+      exit(1)
+    end
   end
 end
 
 class PromptFetcher
   def self.fetch(file_path)
-    require 'shellwords'
+
     return unless file_path && File.exist?(file_path)
     escaped_file_path = Shellwords.escape(file_path)
     json = `~/bin/exiftool/exiftool -s3 -u -Generation_data #{escaped_file_path} 2>&1`
@@ -57,7 +59,7 @@ class CommandLineApp
   end
 
   def fetch_prompt(file_path)
-    require 'shellwords'
+
     return unless file_path && File.exist?(file_path)
     escaped_file_path = Shellwords.escape(file_path)
     json = `~/bin/exiftool/exiftool -s3 -u -Generation_data #{escaped_file_path} 2>&1`
@@ -142,12 +144,13 @@ rescue OptionParser::MissingArgument, OptionParser::InvalidOption => e
   exit(1)
 end
 
-puts "Options: #{options.to_h.inspect} ARGV: #{ARGV.inspect}"
+puts "Options: #{options.inspect}, ARGV: #{ARGV.inspect}"
 
-if (!options.list && (options.label.nil? || options.search.nil?)) || (options.list && ARGV.size != 1)
+if (!options.list && !(options.label && options.search)) || options.list && ARGV.size != 1
 
-  if options.list && !options.search.nil?
-    puts "Error: '--search' argument cannot be used with '--list' as it implies processing of files."
+
+  if options.list && options.search
+    puts "Error: '--search' is incompatible with '--list'."
     puts option_parser
     exit(1)
   end
@@ -157,8 +160,8 @@ if (!options.list && (options.label.nil? || options.search.nil?)) || (options.li
   exit(1)
 end
 
-if ARGV.empty?
-  puts "Error: A directory name is required when '--list' is specified."
+if ARGV.empty? || ARGV.size > 1
+  puts "Error: Specify exactly one directory."
   puts option_parser
   exit(1)
 end
