@@ -11,38 +11,44 @@ class CommandLineApp
     @search_string = search_string
     @label = label
 
-  end
+    @processed_folder = File.join(@directory, @label)
+    Dir.mkdir(@processed_folder) unless Dir.exist?(@processed_folder)
 
-  def run
-    if !Dir.exist?(@directory)
-      puts "The directory '#{@directory}' does not exist."
-      exit(1)
-    end
-
-    puts "Processing files in the directory '#{@directory}' search #{@search_string} to #{@label}"
-
-    # Iterate over files in the directory
-    Dir.foreach(@directory) do |file|
-      file_path = File.join(@directory, file)
-
-      # Skip directories and hidden files (like `.`, `..`)
-      next if File.directory?(file_path)
-
-      json = ` ~/bin/exiftool/exiftool  -s3 -u -Generation_data  #{file_path} 2>&1 `
-
-      next if json.empty?
-
-      begin
-        prompt = JSON.parse(json)['prompt']
-        puts "@search_string: #{@search_string.inspect}"
-        puts "#{file}  #{@label.inspect} #{prompt}" if prompt.include?(@search_string)
-      rescue JSON::ParserError => e
-        puts "JSON Parsing Error: #{e.message}"
-        puts "Backtrace:\n\t#{e.backtrace.join("\n\t")}"
-        puts "parsing: #{json.inspect}"
-        nil # Return nil or handle it according to your logic
+    def run
+      if !Dir.exist?(@directory)
+        puts "The directory '#{@directory}' does not exist."
+        exit(1)
       end
 
+      puts "Processing files in the directory '#{@directory}' search #{@search_string} to #{@label}"
+
+      # Iterate over files in the directory
+      Dir.foreach(@directory) do |file|
+        file_path = File.join(@directory, file)
+
+        # Skip directories and hidden files (like `.`, `..`)
+        next if File.directory?(file_path)
+
+        json = ` ~/bin/exiftool/exiftool  -s3 -u -Generation_data  #{file_path} 2>&1 `
+
+        next if json.empty?
+
+        begin
+          prompt = JSON.parse(json)['prompt']
+          if prompt.include?(@search_string)
+            puts "#{file}:\n #{prompt}\n\n"
+            new_path = File.join(@processed_folder, file)
+            File.rename(file_path, new_path)
+          end
+
+        rescue JSON::ParserError => e
+          puts "JSON Parsing Error: #{e.message}"
+          puts "Backtrace:\n\t#{e.backtrace.join("\n\t")}"
+          puts "parsing: #{json.inspect}"
+          nil # Return nil or handle it according to your logic
+        end
+
+      end
     end
   end
 end
@@ -53,11 +59,13 @@ options = OpenStruct.new
 option_parser = OptionParser.new do |opts|
   opts.banner = "Usage: script_name.rb directory --search SEARCH_STRING --label LABEL"
 
-  opts.on("--search SEARCH_STRING", "The search string to filter files (required).") do |search|
+  opts.on("--search SEARCH_STRING",
+          "The search string to filter files (required).") do |search|
     options.search = search
   end
 
-  opts.on("--label LABEL", "The label to append to output.") do |label|
+  opts.on("--label LABEL",
+          "The label to append to output.") do |label|
     options.label = label
   end
 end
