@@ -6,15 +6,62 @@ require 'json'
 
 # Define a class for the program logic
 
+class DirectoryValidator
+  def self.validate!(directory)
+    return if Dir.exist?(directory)
+    puts "The directory '#{directory}' does not exist."
+    exit(1)
+  end
+end
+
+class PromptFetcher
+  def self.fetch(file_path)
+    require 'shellwords'
+    return unless file_path && File.exist?(file_path)
+    escaped_file_path = Shellwords.escape(file_path)
+    json = `~/bin/exiftool/exiftool -s3 -u -Generation_data #{escaped_file_path} 2>&1`
+    return nil if json.empty?
+    JSON.parse(json)['prompt']
+  rescue JSON::ParserError => e
+    puts "Error parsing JSON for file '#{file_path}': #{e.message}"
+    nil
+  end
+end
+
 class CommandLineApp
   def initialize(directory, search_string, label, list_mode = false)
-
     @directory = File.expand_path(directory)
     @search_string = search_string
     @label = label
     @list_mode = list_mode
-    @processed_folder = list_mode ? nil : File.join(@directory, @label)
-    Dir.mkdir(@processed_folder) if @processed_folder && !Dir.exist?(@processed_folder)
+    unless list_mode
+      setup_processed_folder
+    end
+  end
+
+  def run
+    DirectoryValidator.validate!(@directory)
+    @list_mode ? list_files : process_files
+  end
+
+  # removed private keyword
+
+  def setup_processed_folder
+    @processed_folder = File.join(@directory, @label)
+    Dir.mkdir(@processed_folder) unless Dir.exist?(@processed_folder)
+  end
+
+  def initialize(directory, search_string, label, list_mode = false)
+    @directory = File.expand_path(directory)
+    @search_string = search_string
+    @label = label
+    @list_mode = list_mode
+    setup_processed_folder unless list_mode
+  end
+
+  def setup_processed_folder
+    @processed_folder = File.join(@directory, @label)
+    Dir.mkdir(@processed_folder) unless Dir.exist?(@processed_folder)
   end
 
   def run
@@ -50,24 +97,39 @@ class CommandLineApp
 
   def list_files
     puts "Listing files with relevant prompts in directory '#{@directory}':"
-    Dir.children(@directory).each do |file|
-      file_path = File.join(@directory, file)
-      next if File.directory?(file_path) || file.start_with?('.')
-      prompt = fetch_prompt(file_path)
-      puts "File: #{file}\nPrompt:\n#{prompt}\n\n" if prompt
+    filter_files.each do |file_path|
+      display_file_prompt(file_path)
     end
+  end
+
+  def filter_files
+    Dir.children(@directory).map { |file| File.join(@directory, file) }
+       .select { |file_path| File.file?(file_path) && !File.basename(file_path).start_with?('.') }
+  end
+
+  def display_file_prompt(file_path)
+    prompt = PromptFetcher.fetch(file_path)
+    return unless prompt
+    puts "File: #{File.basename(file_path)}\nPrompt:\n#{prompt}\n\n"
   end
 
   def process_files
     puts "Processing files in the directory '#{@directory}' search #{@search_string} to #{@label}"
-    Dir.children(@directory).each do |file|
-      file_path = File.join(@directory, file)
-      next if File.directory?(file_path)
-      prompt = fetch_prompt(file_path)
-      next unless prompt && (@search_string.nil? || prompt.include?(@search_string))
-      puts "#{file}:\n#{prompt}\n\n"
-      File.rename(file_path, File.join(@processed_folder, file)) if @processed_folder
+    filter_files.each do |file_path|
+      process_file(file_path)
     end
+  end
+
+  def process_file(file_path)
+    prompt = PromptFetcher.fetch(file_path)
+    return unless prompt && (@search_string.nil? || prompt.include?(@search_string))
+    puts "#{File.basename(file_path)}:\n#{prompt}\n\n"
+    move_file(file_path)
+  end
+
+  def move_file(file_path)
+    return unless @processed_folder
+    File.rename(file_path, File.join(@processed_folder, File.basename(file_path)))
   end
 end
 
