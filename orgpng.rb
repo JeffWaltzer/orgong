@@ -29,27 +29,6 @@ class PromptFetcher
 end
 
 class CommandLineApp
-  def initialize(directory, search_string, label, list_mode = false)
-    @directory = File.expand_path(directory)
-    @search_string = search_string
-    @label = label
-    @list_mode = list_mode
-    unless list_mode
-      setup_processed_folder
-    end
-  end
-
-  def run
-    DirectoryValidator.validate!(@directory)
-    @list_mode ? list_files : process_files
-  end
-
-  # removed private keyword
-
-  def setup_processed_folder
-    @processed_folder = File.join(@directory, @label)
-    Dir.mkdir(@processed_folder) unless Dir.exist?(@processed_folder)
-  end
 
   def initialize(directory, search_string, label, list_mode = false)
     @directory = File.expand_path(directory)
