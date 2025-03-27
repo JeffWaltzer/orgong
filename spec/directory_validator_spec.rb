@@ -11,10 +11,14 @@ RSpec.describe DirectoryValidator do
 
     context 'when the directory does not exist' do
       it 'outputs an error message and exits' do
-        allow(Dir).to receive(:exist?).with('/invalid_directory').and_return(false)
+        allow(Dir).to receive(:exist?)
+                        .with('/invalid_directory')
+                        .and_return(false)
         expect {
           DirectoryValidator.validate!('/invalid_directory')
-        }.to output(/The directory '\/invalid_directory' does not exist./).to_stdout.and raise_error(SystemExit)
+        }.to output(/The directory '\/invalid_directory' does not exist./)
+                       .to_stdout
+                       .and raise_error
       end
     end
   end

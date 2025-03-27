@@ -3,7 +3,7 @@ class DirectoryValidator
     unless Dir.exist?(directory)
       puts "\n"
       puts "The directory '#{directory}' does not exist."
-      exit(1)
+      raise 'Invalid directory.'
     end
   end
 end
