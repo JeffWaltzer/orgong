@@ -116,3 +116,20 @@
 /home/jeff/.rbenv/versions/3.1.2/lib/ruby/gems/3.1.0/gems/rspec-core-3.13.3/exe/rspec:4:in `<top (required)>'
 /home/jeff/.rbenv/versions/3.1.2/bin/rspec:25:in `load'
 /home/jeff/.rbenv/versions/3.1.2/bin/rspec:25:in `<main>'
+[2025-03-26 21:41:04] ERROR: Error moving file '/mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/shower/0abcf94c-0f51-4e74-938d-bc8e4aee9d0c.png' to '/mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/hc': File exists @ syserr_fail2_in - /mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/hc/0abcf94c-0f51-4e74-938d-bc8e4aee9d0c.png
+[2025-03-26 21:41:04] BACKTRACE: /home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:541:in `rename'
+/home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:541:in `block in mv'
+/home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:1577:in `block in fu_each_src_dest'
+/home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:1593:in `fu_each_src_dest0'
+/home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:1575:in `fu_each_src_dest'
+/home/jeff/.rbenv/versions/3.1.2/lib/ruby/3.1.0/fileutils.rb:532:in `mv'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:109:in `move_file'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:98:in `process_file'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:89:in `block in process_files'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:88:in `each'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:88:in `process_files'
+/home/jeff/RubymineProjects/orgpng/lib/command_line_app.rb:33:in `run'
+orgpng.rb:24:in `<main>'
+[2025-03-26 21:58:56] ERROR: Move skipped: Source and destination paths are the same for '/mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/hc/813848641623047089.png'.
+[2025-03-26 21:58:58] ERROR: Move skipped: Source and destination paths are the same for '/mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/hc/813860233739980043.png'.
+[2025-03-26 21:58:59] ERROR: Move skipped: Source and destination paths are the same for '/mnt/chromeos/SMB/19440da825a67218b19188774346262dc128be6c61e58f57b0305699a5708713/devx/ta/2/hc/813863588109230934.png'.

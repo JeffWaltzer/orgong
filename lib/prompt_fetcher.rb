@@ -1,6 +1,7 @@
 require_relative 'logging'
 
 class PromptFetcher
+  extend Logging
   def self.fetch(file_path)
     return unless file_path && File.exist?(file_path)
     escaped_file_path = Shellwords.escape(file_path)
