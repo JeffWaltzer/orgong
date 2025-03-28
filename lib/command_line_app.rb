@@ -4,7 +4,8 @@ class CommandLineApp
 
   include Logging
 
-  def initialize(directory, search_string, label, list_mode = false, recursive = false)
+  def initialize(directory, search_string, label, list_mode = false, recursive = false, minimum: 0)
+    @minimum = minimum
     @directory = File.expand_path(directory)
     @search_string = search_string
     @label = label
@@ -13,8 +14,6 @@ class CommandLineApp
     setup_processed_folder unless list_mode
     @directory = File.expand_path(directory)
     @search_string = search_string
-    @label = label
-    @list_mode = list_mode
     setup_processed_folder unless list_mode
   end
 
@@ -57,11 +56,9 @@ class CommandLineApp
     return unless file_path && File.exist?(file_path)
     escaped_file_path = Shellwords.escape(file_path)
     PromptFetcher.fetch(file_path)
-
   end
 
   def list_files
-    puts "Listing files with relevant prompts in directory '#{@directory}':"
     filter_files.each do |file_path|
       display_file_prompt(file_path)
     end
@@ -80,21 +77,44 @@ class CommandLineApp
   def display_file_prompt(file_path)
     prompt = PromptFetcher.fetch(file_path)
     return unless prompt
-    puts "File: #{File.basename(file_path)}\nPrompt:\n#{prompt}\n\n"
   end
 
   def process_files
-    puts "Processing files in the directory '#{@directory}' search #{@search_string} to #{@label}"
     filter_files.each do |file_path|
-      process_file(file_path)
+      process_file(file_path, @minimum)
     end
   end
 
-  def process_file(file_path)
+  def countwords(prompt, minimum)
+    stop_words = %w[the be to of and a in that have I it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take person into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is are was were]
+    @freq ||= Hash.new(0)
+    @previous_top_words ||= []
+    words = (prompt || '').
+      split.reject do |word|
+      stop_words.include?(word.downcase) ||
+        (minimum && word.length < minimum)
+    end
+    words.each { |w| @freq[w] += 1 }
+
+    show_top_five
+
+  end
+
+  def show_top_five
+    top_five_words = @freq.sort_by { |_, count| -count }.first(5)
+    if top_five_words != @previous_top_words
+      puts "-------\nTop five most frequent words:"
+      top_five_words.each { |word, count| puts "'#{word}' with count: #{count}" }
+      @previous_top_words = top_five_words
+    end
+  end
+
+  def process_file(file_path, minimum)
     prompt = PromptFetcher.fetch(file_path)
-    return unless prompt && (@search_string.nil? || prompt.include?(@search_string))
-    puts "\n"
-    puts "#{File.basename(file_path)}:\n#{prompt}\n\n"
+
+    countwords(prompt, minimum)
+    return unless prompt &&
+      (@search_string.nil? || prompt.include?(@search_string))
     move_file(file_path)
   end
 
@@ -107,6 +127,7 @@ class CommandLineApp
     end
     begin
       FileUtils.mv(file_path, destination_path)
+      puts "Moved '#{file_path}' to '#{@processed_folder}'."
     rescue SystemCallError => e
       handle_error("Error moving file '#{file_path}' to '#{@processed_folder}': #{e.message}", e)
     end

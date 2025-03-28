@@ -19,6 +19,7 @@ app = CommandLineApp.new(
   options.search,
   options.label,
   options.list,
-  options.recursive
+  options.recursive,
+  minimum: options.minimum
 )
 app.run

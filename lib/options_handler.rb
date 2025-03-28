@@ -18,6 +18,11 @@ class OptionsHandler
         options.label = label
       end
 
+      opts.on("--minimum MINIMUM",
+              "Minimal word length for freq") do |minimum|
+        options.minimum = minimum.to_i
+      end
+
       opts.on("--list", "List the matching prompts without moving files.") do
         options.list = true
       end
@@ -41,7 +46,7 @@ class OptionsHandler
   end
 
   def self.validate_arguments(options, args, option_parser)
-    if (!options.list && !(options.label && options.search)) || (options.list && args.size != 1)
+    if (!options.list && !(options.label ||= options.search.match?(/\A[a-zA-Z]+\z/) ? options.search : nil) && options.search) || (options.list && args.size != 1)
       puts "\nError: '--label' and '--search' arguments are required unless '--list' is specified with a directory."
       puts option_parser
       exit(1)
