@@ -6,9 +6,8 @@ class PromptFetcher
     return unless file_path && File.exist?(file_path)
     escaped_file_path = Shellwords.escape(file_path)
     json = `~/bin/exiftool/exiftool -s3 -u -Generation_data #{escaped_file_path} 2>&1`
-    return nil if json.empty?
     begin
-      JSON.parse(json)['prompt']
+      JSON.parse(json)['prompt'] if json && json[0]=='{'
     rescue JSON::ParserError => e
       handle_error(e.message, e)
     end

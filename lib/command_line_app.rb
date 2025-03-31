@@ -1,4 +1,5 @@
 require_relative 'logging.rb'
+require 'curses'
 
 class CommandLineApp
 
@@ -11,31 +12,52 @@ class CommandLineApp
     @label = label
     @list_mode = list_mode
     @recursive = recursive
-    setup_processed_folder unless list_mode
-    @directory = File.expand_path(directory)
-    @search_string = search_string
-    setup_processed_folder unless list_mode
+    setup_processed_folder
+  end
+
+  def update_window(message)
+    @bottom_window.addstr(message)
+    @bottom_window.refresh
   end
 
   def setup_processed_folder
-    @processed_folder = File.join(@directory, @label)
-    begin
-      Dir.mkdir(@processed_folder) unless Dir.exist?(@processed_folder)
-    rescue SystemCallError => e
-      handle_error("Error creating directory '#{@processed_folder}': #{e.message}", e)
-      exit(1)
-    end
+    @processed_folder = File.join(@directory, @label || '')
+    create_directory(@processed_folder)
+  end
+
+  def create_directory(directory)
+    Dir.mkdir(directory) unless Dir.exist?(directory)
+  rescue SystemCallError => e
+    handle_error("Error creating directory '#{directory}': #{e.message}", e)
+    exit(1)
   end
 
   def run
     validate_directory
-    @list_mode ? list_files : process_files
+    Curses.init_screen
+    begin
+      setup_curses_windows
+      @list_mode ? list_files : process_files
+    ensure
+      Curses.close_screen
+    end
   end
 
   private
 
+  def setup_curses_windows
+    @top_window = Curses::Window.new(11, Curses.cols, 0, 0)
+
+    @bottom_window = Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
+    @bottom_window.scrollok(true)
+  end
+
   def validate_directory
-    DirectoryValidator.validate!(@directory)
+    validate_path(@directory)
+  end
+
+  def validate_path(path)
+    DirectoryValidator.validate!(path)
   end
 
   def validate_options(options, args, parser)
@@ -60,7 +82,7 @@ class CommandLineApp
 
   def list_files
     filter_files.each do |file_path|
-      display_file_prompt(file_path)
+      puts "File: #{file_path} -> #{PromptFetcher.fetch(file_path)}.inspect"
     end
   end
 
@@ -70,17 +92,20 @@ class CommandLineApp
             else
               Dir.children(@directory).map { |file| File.join(@directory, file) }
             end
-    files.select { |file_path| File.file?(file_path) && !File.basename(file_path).start_with?('.') }
-         .select { |file_path| File.file?(file_path) && !File.basename(file_path).start_with?('.') }
+    files.select { |file_path| valid_file?(file_path) }
   end
 
-  def display_file_prompt(file_path)
-    prompt = PromptFetcher.fetch(file_path)
-    return unless prompt
+  def valid_file?(file_path)
+    File.file?(file_path) && !File.basename(file_path).start_with?('.')
   end
 
   def process_files
-    filter_files.each do |file_path|
+    @bottom_window ||= Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
+    @bottom_window.scrollok(true)
+
+    update_window("Processing files in '#{@directory}'...\n")
+    filter_files.each_with_index do |file_path, index|
+      @top_window.addstr("\ncount: #{index + 1}")
       process_file(file_path, @minimum)
     end
   end
@@ -101,20 +126,35 @@ class CommandLineApp
   end
 
   def show_top_five
-    top_five_words = @freq.sort_by { |_, count| -count }.first(5)
-    if top_five_words != @previous_top_words
-      puts "-------\nTop five most frequent words:"
-      top_five_words.each { |word, count| puts "'#{word}' with count: #{count}" }
-      @previous_top_words = top_five_words
-    end
+    top_words = calculate_top_words(@freq, 8)
+    refresh_top_window(top_words) if top_words != @previous_top_words
+    @previous_top_words = top_words
+  end
+
+  def calculate_top_words(frequencies, limit)
+    frequencies.sort_by { |_, count| -count }.first(limit)
+  end
+
+  def refresh_top_window(top_words)
+    @top_window.clear
+    @top_window.setpos(0, 0)
+    @top_window.addstr("-------#{@search_string} => #{@label} #{@directory}\n")
+    top_words.each { |word, count| @top_window.addstr("'#{word}' with count: #{count}\n") }
+    @top_window.addstr("------ #{@freq.size}")
+    @top_window.refresh
+  end
+
+
+  def valid_prompt?(prompt)
+    prompt && (@search_string.nil? || prompt.include?(@search_string))
   end
 
   def process_file(file_path, minimum)
     prompt = PromptFetcher.fetch(file_path)
 
     countwords(prompt, minimum)
-    return unless prompt &&
-      (@search_string.nil? || prompt.include?(@search_string))
+    return unless valid_prompt?(prompt)
+
     move_file(file_path)
   end
 
@@ -127,9 +167,12 @@ class CommandLineApp
     end
     begin
       FileUtils.mv(file_path, destination_path)
-      puts "Moved '#{file_path}' to '#{@processed_folder}'."
+      update_window("Moved '#{file_path}' to '#{@processed_folder}'.\n")
     rescue SystemCallError => e
-      handle_error("Error moving file '#{file_path}' to '#{@processed_folder}': #{e.message}", e)
+      msg = "Error moving file '#{file_path}' to '#{@processed_folder}': #{e.message}"
+      handle_error(msg, e)
+      update_window("#{msg}\n")
     end
+
   end
 end
