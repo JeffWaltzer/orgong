@@ -39,7 +39,9 @@ class CommandLineApp
       setup_curses_windows
       @list_mode ? list_files : process_files
     ensure
-      Curses.close_screen
+      @bottom_window.close if @bottom_window
+      @top_window.close if @top_window
+      # Removed Curses.close_screen to avoid clearing the screen on exit
     end
   end
 
@@ -81,8 +83,20 @@ class CommandLineApp
   end
 
   def list_files
-    filter_files.each do |file_path|
-      puts "File: #{file_path} -> #{PromptFetcher.fetch(file_path)}.inspect"
+    @bottom_window ||= Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
+    @bottom_window.scrollok(true)
+
+    Curses.clear
+    Curses.refresh
+    @bottom_window.clear
+    @bottom_window.setpos(0, 0)
+    filter_files.reject(&:empty?).each do |file_path|
+      prompt = PromptFetcher.fetch(file_path)
+      if prompt
+        @bottom_window.setpos(@bottom_window.cury + 1, 0)
+        @bottom_window.addstr("File: #{file_path} -> #{prompt.inspect}\n")
+      end
+      @bottom_window.refresh
     end
   end
 
@@ -92,7 +106,7 @@ class CommandLineApp
             else
               Dir.children(@directory).map { |file| File.join(@directory, file) }
             end
-    files.select { |file_path| valid_file?(file_path) }
+    files.select { |file_path| valid_file?(file_path) && !file_path.strip.empty? }
   end
 
   def valid_file?(file_path)
@@ -143,7 +157,6 @@ class CommandLineApp
     @top_window.addstr("------ #{@freq.size}")
     @top_window.refresh
   end
-
 
   def valid_prompt?(prompt)
     prompt && (@search_string.nil? || prompt.include?(@search_string))
