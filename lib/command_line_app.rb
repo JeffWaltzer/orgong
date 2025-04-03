@@ -118,9 +118,19 @@ class CommandLineApp
     @bottom_window.scrollok(true)
 
     update_window("Processing files in '#{@directory}'...\n")
-    filter_files.each_with_index do |file_path, index|
-      @top_window.addstr("\ncount: #{index + 1}")
+    files_to_process = filter_files
+    total_files = files_to_process.size
+    @index = 0
+    files_to_process.each do |file_path|
+      @index += 1
+      @percentage = ((@index + 1).to_f / total_files * 100).round(2)
+      progress_line = @top_window.maxy - 1
+      @top_window.setpos(progress_line, 0)
+      @top_window.refresh
+
+      # @top_window.addstr("\ncount: #{index + 1}")
       process_file(file_path, @minimum)
+
     end
   end
 
@@ -152,9 +162,9 @@ class CommandLineApp
   def refresh_top_window(top_words)
     @top_window.clear
     @top_window.setpos(0, 0)
-    @top_window.addstr("-------#{@search_string} => #{@label} #{@directory}\n")
+    @top_window.addstr("-------#{@search_string} => #{@label} #{@directory} #{@recursive ? 'recursive' : ''}  \n")
     top_words.each { |word, count| @top_window.addstr("'#{word}' with count: #{count}\n") }
-    @top_window.addstr("------ #{@freq.size}")
+    @top_window.addstr("------ #{@percentage}%\n")
     @top_window.refresh
   end
 
