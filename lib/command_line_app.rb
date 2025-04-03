@@ -8,6 +8,7 @@ class CommandLineApp
   def initialize(directory, search_string, label, list_mode = false, recursive = false, minimum: 0)
     @minimum = minimum
     @directory = File.expand_path(directory)
+    @processed_file_count = 0
     @search_string = search_string
     @label = label
     @list_mode = list_mode
@@ -32,23 +33,36 @@ class CommandLineApp
     exit(1)
   end
 
+  def display_summary(frequencies)
+    puts "\nSummary:"
+    puts "Total files processed: #{@processed_file_count}"
+    puts "Top 10 most frequently occurring words:"
+    top_words = calculate_top_words(frequencies, 10)
+    top_words && top_words.each_with_index do |(word, count), index|
+      puts "#{index + 1}. '#{word}' - #{count}"
+    end
+  end
+
+
   def run
     validate_directory
     Curses.init_screen
+    setup_curses_window
     begin
-      setup_curses_windows
       @list_mode ? list_files : process_files
     ensure
       @bottom_window.close if @bottom_window
       @top_window.close if @top_window
-      # Removed Curses.close_screen to avoid clearing the screen on exit
+      display_summary(@freq)
     end
-  end
 
-  private
 
-  def setup_curses_windows
-    @top_window = Curses::Window.new(11, Curses.cols, 0, 0)
+    def validate_directory
+      unless Dir.exist?(@directory) && File.directory?(@directory)
+        handle_error("Invalid directory: '#{@directory}'", nil)
+        exit(1)
+      end
+    end
 
     @bottom_window = Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
     @bottom_window.scrollok(true)
@@ -114,6 +128,7 @@ class CommandLineApp
   end
 
   def process_files
+    raise "Error: @top_window is not initialized" unless @top_window
     @bottom_window ||= Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
     @bottom_window.scrollok(true)
 
@@ -123,14 +138,14 @@ class CommandLineApp
     @index = 0
     files_to_process.each do |file_path|
       @index += 1
+      @processed_file_count += 1
       @percentage = ((@index + 1).to_f / total_files * 100).round(2)
-      progress_line = @top_window.maxy - 1
+      progress_line = @top_window&.maxy - 1
       @top_window.setpos(progress_line, 0)
       @top_window.refresh
 
       # @top_window.addstr("\ncount: #{index + 1}")
       process_file(file_path, @minimum)
-
     end
   end
 
@@ -144,7 +159,9 @@ class CommandLineApp
         (minimum && word.length < minimum)
     end
     words.each { |w| @freq[w] += 1 }
-
+    words.each do |w|
+      @freq[w] += 1
+    end
     show_top_five
 
   end
@@ -156,7 +173,7 @@ class CommandLineApp
   end
 
   def calculate_top_words(frequencies, limit)
-    frequencies.sort_by { |_, count| -count }.first(limit)
+    frequencies && frequencies.sort_by { |_, count| -count }.first(limit)
   end
 
   def refresh_top_window(top_words)
@@ -197,5 +214,10 @@ class CommandLineApp
       update_window("#{msg}\n")
     end
 
+  end
+
+  def setup_curses_window
+    @top_window = Curses::Window.new(11, Curses.cols, 0, 0)
+    @top_window.scrollok(true)
   end
 end
