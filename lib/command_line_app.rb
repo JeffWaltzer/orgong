@@ -1,8 +1,9 @@
-require_relative 'logging.rb'
+# frozen_string_literal: true
+
+require_relative 'logging'
 require 'curses'
 
 class CommandLineApp
-
   include Logging
 
   def initialize(directory, search_string, label, list_mode = false, recursive = false, minimum: 0)
@@ -36,13 +37,12 @@ class CommandLineApp
   def display_summary(frequencies)
     puts "\nSummary:"
     puts "Total files processed: #{@processed_file_count}"
-    puts "Top 10 most frequently occurring words:"
+    puts 'Top 10 most frequently occurring words:'
     top_words = calculate_top_words(frequencies, 10)
-    top_words && top_words.each_with_index do |(word, count), index|
+    top_words&.each_with_index do |(word, count), index|
       puts "#{index + 1}. '#{word}' - #{count}"
     end
   end
-
 
   def run
     validate_directory
@@ -51,17 +51,16 @@ class CommandLineApp
     begin
       @list_mode ? list_files : process_files
     ensure
-      @bottom_window.close if @bottom_window
-      @top_window.close if @top_window
+      @bottom_window&.close
+      @top_window&.close
       display_summary(@freq)
     end
 
-
     def validate_directory
-      unless Dir.exist?(@directory) && File.directory?(@directory)
-        handle_error("Invalid directory: '#{@directory}'", nil)
-        exit(1)
-      end
+      return if Dir.exist?(@directory) && File.directory?(@directory)
+
+      handle_error("Invalid directory: '#{@directory}'", nil)
+      exit(1)
     end
 
     @bottom_window = Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
@@ -76,23 +75,22 @@ class CommandLineApp
     DirectoryValidator.validate!(path)
   end
 
-  def validate_options(options, args, parser)
-    if (!options.list && !(options.label && options.search)) || options.list && args.size != 1
-      if options.list && options.search
-        handle_error("'--search' is incompatible with '--list'.", nil)
-      end
-      handle_error("'--label' and '--search' arguments are required unless '--list' is specified with a directory.", nil)
-    end
+  def validate_options(options, args, _parser)
+    return unless (!options.list && !(options.label && options.search)) || options.list && args.size != 1
+
+    handle_error("'--search' is incompatible with '--list'.", nil) if options.list && options.search
+    handle_error("'--label' and '--search' arguments are required unless '--list' is specified with a directory.",
+                 nil)
   end
 
-  def validate_directory_argument(args, parser)
-    handle_error("Specify exactly one directory.", nil) if args.empty? || args.size > 1
+  def validate_directory_argument(args, _parser)
+    handle_error('Specify exactly one directory.', nil) if args.empty? || args.size > 1
   end
 
   def fetch_prompt(file_path)
-
     return unless file_path && File.exist?(file_path)
-    escaped_file_path = Shellwords.escape(file_path)
+
+    Shellwords.escape(file_path)
     PromptFetcher.fetch(file_path)
   end
 
@@ -128,7 +126,8 @@ class CommandLineApp
   end
 
   def process_files
-    raise "Error: @top_window is not initialized" unless @top_window
+    raise 'Error: @top_window is not initialized' unless @top_window
+
     @bottom_window ||= Curses::Window.new(Curses.lines - 11, Curses.cols, 11, 0)
     @bottom_window.scrollok(true)
 
@@ -140,7 +139,7 @@ class CommandLineApp
       @index += 1
       @processed_file_count += 1
       @percentage = ((@index + 1).to_f / total_files * 100).round(2)
-      progress_line = @top_window&.maxy - 1
+      progress_line = @top_window&.maxy&.- 1
       @top_window.setpos(progress_line, 0)
       @top_window.refresh
 
@@ -150,20 +149,20 @@ class CommandLineApp
   end
 
   def countwords(prompt, minimum)
-    stop_words = %w[the be to of and a in that have I it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take person into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is are was were]
+    stop_words = %w[the be to of and a in that have I it for not on with he as you do at this but his by from they we
+                    say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take person into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is are was were]
     @freq ||= Hash.new(0)
     @previous_top_words ||= []
-    words = (prompt || '').
-      split.reject do |word|
+    words = (prompt || '')
+            .split.reject do |word|
       stop_words.include?(word.downcase) ||
         (minimum && word.length < minimum)
     end
-    words.each { |w| @freq[w] += 1 }
     words.each do |w|
+      @freq[w] += 1
       @freq[w] += 1
     end
     show_top_five
-
   end
 
   def show_top_five
@@ -173,7 +172,7 @@ class CommandLineApp
   end
 
   def calculate_top_words(frequencies, limit)
-    frequencies && frequencies.sort_by { |_, count| -count }.first(limit)
+    frequencies&.sort_by { |_, count| -count }&.first(limit)
   end
 
   def refresh_top_window(top_words)
@@ -200,6 +199,7 @@ class CommandLineApp
 
   def move_file(file_path)
     return unless @processed_folder
+
     destination_path = File.join(@processed_folder, File.basename(file_path))
     if File.expand_path(file_path) == File.expand_path(destination_path)
       handle_error("Move skipped: Source and destination paths are the same for '#{file_path}'.")
@@ -213,7 +213,6 @@ class CommandLineApp
       handle_error(msg, e)
       update_window("#{msg}\n")
     end
-
   end
 
   def setup_curses_window
